@@ -158,6 +158,7 @@ public class SecureNotepadUtils {
         return buffer;
     }
     
+      
 
     protected String decryptSymmetricKey(byte[] data, Key key) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("RSA");
