@@ -15,8 +15,13 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -26,9 +31,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import org.apache.commons.codec.binary.Base64;
 
 /**
  *
+ * http://www.java-redefined.com/2013/08/symmetric-and-asymmetric-key-encryption.html
  * String dummyText = "Hello World, this is a string that will be encrypted
  * using javax.crypto";
  *
@@ -168,6 +175,31 @@ public class SecureNotepadWindow extends JFrame implements ClipboardOwner {
 
         cryptography_new = new JMenuItem("New keypair");
         cryptography_new.addActionListener((event) -> {
+            String oldTitle = filechooser.getDialogTitle();
+            try {
+                SecureNotepadUtils me = new SecureNotepadUtils();
+                me.generateKeys();
+
+                filechooser.setDialogTitle("Save private/public keys");
+
+                int dialogButton = filechooser.showSaveDialog(this);
+                if (dialogButton == JFileChooser.APPROVE_OPTION) {
+                    File f = filechooser.getSelectedFile();
+                    File publicFile = new File(filechooser.getSelectedFile().getAbsolutePath().concat(".pub"));
+                    try (FileOutputStream fout = new FileOutputStream(f)) {
+                        fout.write(Base64.encodeBase64String(me.getPrivateKey().getEncoded()).getBytes());
+                    }
+                    try ( FileOutputStream fout = new FileOutputStream(publicFile)) {
+                        fout.write(Base64.encodeBase64(me.getPublicKey().getEncoded()));
+                    }
+
+                }
+            } catch (IOException | NoSuchAlgorithmException e) {
+                Logger.getLogger(SecureNotepadWindow.class.getName()).log(Level.SEVERE, null, e);
+
+            }
+            filechooser.setDialogTitle(oldTitle);
+
         });
         cryptography_load = new JMenuItem("Load");
         cryptography_load.addActionListener((event) -> {
@@ -237,13 +269,13 @@ public class SecureNotepadWindow extends JFrame implements ClipboardOwner {
     private void sendClipboardToTextArea() {
         Clipboard c = Toolkit.getDefaultToolkit().getSystemClipboard();
         Transferable contents = c.getContents(null);
-        boolean hasContent = (contents != null ) && contents.isDataFlavorSupported(DataFlavor.stringFlavor);
-        if ( hasContent ) {
+        boolean hasContent = (contents != null) && contents.isDataFlavorSupported(DataFlavor.stringFlavor);
+        if (hasContent) {
             try {
                 String result = (String) contents.getTransferData(DataFlavor.stringFlavor);
                 secure_textarea.setText(result);
-                
-            }catch (IOException | UnsupportedFlavorException | NullPointerException e ) {
+
+            } catch (IOException | UnsupportedFlavorException | NullPointerException e) {
                 System.err.println(e.getMessage());
             }
         }

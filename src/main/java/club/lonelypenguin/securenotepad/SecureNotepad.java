@@ -20,9 +20,7 @@ public class SecureNotepad {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-
       
-
         final Runnable r = () -> {
             Toolkit tk = Toolkit.getDefaultToolkit();
             Dimension screenSize = tk.getScreenSize();
