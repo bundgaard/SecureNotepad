@@ -15,10 +15,13 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -99,11 +102,69 @@ public class SecureNotepadWindow extends JFrame implements ClipboardOwner {
         setLayout(new BorderLayout());
     }
 
+    protected void getFileEncoding(File f) throws FileNotFoundException, IOException {
+
+        try (BufferedReader fileRead = new BufferedReader(new FileReader(f))) {
+            char bom[] = new char[3];
+            /*
+             0xff, 0xfe, 0x00 UTF16, little endian
+             0xfe, 0xff, 0x00 UTF16, big endian
+             0xef, 0xbb, 0xbf UTF8
+             */
+
+            int length = fileRead.read(bom);
+            if (length >= 2) {
+                if ((bom[0] == (char) 0xff && bom[1] == (char) 0xfe)
+                        || (bom[0] == (char) 0xfe && bom[1] == (char) 0xff)) {
+                    System.out.println("getFileEncoding(): UTF16");
+                }
+            }
+
+            if (length >= 3) {
+                if (bom[0] == (char) 0xef
+                        && bom[1] == (char) 0xbb
+                        && bom[2] == (char) 0xbf) {
+                    System.out.println("getFileEncoding(): UTF8");
+                }
+            }
+
+        }
+
+    }
+
     private void openFile(File f) {
+        Charset.availableCharsets().forEach((s, c) -> {
+            System.out.println(s);
+            System.out.println(c);
+        });
         try {
             StringBuilder sb = new StringBuilder();
-            BufferedReader fileRead = new BufferedReader(new FileReader(f));
-            secure_textarea.read(fileRead, f);
+            String encoding = System.getProperty("file.encoding");
+            try (BufferedReader fileRead = new BufferedReader(new InputStreamReader(new FileInputStream(f), "UTF-8"))) {
+                char bomBuffer[] = new char[3];
+                int bomLength = fileRead.read(bomBuffer);
+                if (bomLength >= 2) {
+                    if ((bomBuffer[0] == (char) 0xff && bomBuffer[1] == (char) 0xfe)
+                            || (bomBuffer[0] == (char) 0xfe && bomBuffer[1] == (char) 0xff)) {
+                        encoding = "UTF-16";
+                    }
+                }
+                if (bomLength >= 3) {
+                    if (bomBuffer[0] == (char) 0xef && bomBuffer[1] == (char) 0xbb && bomBuffer[2] == (char) 0xbf) /* UTF-8 */ {
+                        encoding = "UTF-8";
+                    }
+                }
+                secure_textarea.read(fileRead, null);
+            }
+            System.out.println("Encoding: " + encoding);
+            
+
+//            int c = 0; 
+//            
+//            while ( (c = fileRead.read()) != -1){
+//                System.out.print((char) c);
+//            }
+            // secure_textarea.read(fileRead, null);
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }
@@ -189,7 +250,7 @@ public class SecureNotepadWindow extends JFrame implements ClipboardOwner {
                     try (FileOutputStream fout = new FileOutputStream(f)) {
                         fout.write(Base64.encodeBase64String(me.getPrivateKey().getEncoded()).getBytes());
                     }
-                    try ( FileOutputStream fout = new FileOutputStream(publicFile)) {
+                    try (FileOutputStream fout = new FileOutputStream(publicFile)) {
                         fout.write(Base64.encodeBase64(me.getPublicKey().getEncoded()));
                     }
 
